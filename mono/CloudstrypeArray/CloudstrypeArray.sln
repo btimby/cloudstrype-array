@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudstrypeArray", "CloudstrypeArray\CloudstrypeArray.csproj", "{8352669B-46F1-4A7A-99EA-483150ACE26D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{AE3416DC-E8FB-45B1-AE97-C2FFCEC43186}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -13,5 +15,9 @@ Global
 		{8352669B-46F1-4A7A-99EA-483150ACE26D}.Debug|x86.Build.0 = Debug|x86
 		{8352669B-46F1-4A7A-99EA-483150ACE26D}.Release|x86.ActiveCfg = Release|x86
 		{8352669B-46F1-4A7A-99EA-483150ACE26D}.Release|x86.Build.0 = Release|x86
+		{AE3416DC-E8FB-45B1-AE97-C2FFCEC43186}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AE3416DC-E8FB-45B1-AE97-C2FFCEC43186}.Debug|x86.Build.0 = Debug|Any CPU
+		{AE3416DC-E8FB-45B1-AE97-C2FFCEC43186}.Release|x86.ActiveCfg = Release|Any CPU
+		{AE3416DC-E8FB-45B1-AE97-C2FFCEC43186}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
