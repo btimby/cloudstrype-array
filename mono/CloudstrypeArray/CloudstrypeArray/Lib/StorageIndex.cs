@@ -57,16 +57,26 @@ namespace CloudstrypeArray.Lib
 			// Replace current data file with temp file.
 		}
 
-		public BlockLocation Insert(string id)
+		public void Iterate()
+		{
+			// Not sure how to implement Iterable, but we will want that
+			// to be able to Flush();
+		}
+
+		public void Add(string id, BlockLocation block)
 		{
 			// Write to log.
 			// Insert into memory (re-sort).
+			// http://stackoverflow.com/questions/4214694/how-do-i-insert-an-int-into-a-sorted-array-quickly
+			// https://en.wikipedia.org/wiki/Skip_list
+			// Use Linked list for storage with skip-list for binary search.
 		}
 
-		public BlockLocation Locate(string id)
+		public BlockLocation Find(string id)
 		{
-			// Use something like binary search to locate
-			// id, return it's location.
+			// Use binary search via skip list to locate
+			// id.
+			// Return id's location.
 		}
 
 		public void Delete(string id)
