@@ -22,8 +22,7 @@ namespace CloudstrypeArray.Lib
 		public string Path;
 		public long TotalSize;
 
-		protected File Log;
-		protected File Index;
+		protected FileStream Log;
 
 		public StorageIndex(string path, long totalSize)
 		{
@@ -66,10 +65,10 @@ namespace CloudstrypeArray.Lib
 		public void Add(string id, BlockLocation block)
 		{
 			// Write to log.
-			// Insert into memory (re-sort).
-			// http://stackoverflow.com/questions/4214694/how-do-i-insert-an-int-into-a-sorted-array-quickly
-			// https://en.wikipedia.org/wiki/Skip_list
-			// Use Linked list for storage with skip-list for binary search.
+			// Insert into memory (re-sort?).
+			// https://github.com/dshulepov/DataStructures/blob/master/DataStructures/SkipList.cs
+			// https://msdn.microsoft.com/en-us/library/ms379573(v=vs.80).aspx
+			// Use a skip list to facilitate sorted insertion and binary search.
 		}
 
 		public BlockLocation Find(string id)
@@ -82,7 +81,7 @@ namespace CloudstrypeArray.Lib
 		public void Delete(string id)
 		{
 			// Write to log.
-			// Remove id from list (re-sort).
+			// Remove id from list (re-sort?).
 		}
 	}
 }
