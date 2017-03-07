@@ -1,7 +1,31 @@
 ﻿using System;
+using System.IO;
+using System.IO.MemoryMappedFiles;
 
-namespace CloudstrypeArray.Lib
+namespace CloudstrypeArray.Lib.Storage
 {
+	[Flags]
+	internal enum BlockStatus : byte {
+		Free = 0,
+		Used = 1,
+	}
+
+	internal class BlockHeader
+	{
+		BlockStatus status;
+		Int16 size;
+	}
+
+	public class BlockException : Exception
+	{
+		public int Block;
+
+		public BlockException(string msg, params object[] args) : base(string.Format(msg, args))
+		{
+			Block = (Int32)args [0];
+		}
+	}
+
 	public class StorageFile
 	{
 		// Implements a datastore.
@@ -20,51 +44,107 @@ namespace CloudstrypeArray.Lib
 		// slots are used. Each filled slot contains a header describing
 		// the block. Blocks are immutable and cannot be overwritten.
 
+		public const int BlockSize = 1024 * 32;
+		public const int MaxBlocks = 320;
+		// Total file size is block size * block count (data portion)
+		// plus block count (headers, one byte each).
+		public const int DataSize = (MaxBlocks * BlockSize);
+		public const int BlockTableSize = (MaxBlocks * sizeof(BlockHeader));
+		public const int FileSize = DataSize + BlockTableSize;
+
 		public string Path;
-		public long TotalSize;
+
+		protected MemoryMappedFile _file;
+		protected MemoryMappedViewAccessor _view;
 
 		// This points to the slot after the last known free slot.
 		// Searching increments this until free space is found in the
 		// preceding block (by checking header for 0). When appending
 		// to a file, this will increment block by block.  Delete
 		// sets this value to the recently vacated block.
-		protected int FreeBlock = 0;
+		private Int32 Index = 0;
+		private object _lock;
 
-		public StorageFile(string path, long totalSize)
+		public StorageFile(string path)
 		{
 			Path = path;
-			TotalSize = TotalSize;
+		}
+
+		protected void Open() {
+			_file = MemoryMappedFile.CreateFromFile (
+				Path,
+				FileMode.OpenOrCreate,
+				System.IO.Path.GetFileNameWithoutExtension (Path),
+				MaxSize,
+				MemoryMappedFileAccess.ReadWrite);
+			_view = _file.CreateViewAccessor ();
+		}
+
+		private BlockHeader ReadHeader(int block)
+		{
+			Int32 pos = block * sizeof(BlockHeader);
+			BlockHeader header = new BlockHeader ();
+			header.status = (BlockStatus)_view.ReadByte (pos++);
+			header.size = _view.ReadInt16 (pos);
+			return header;
+		}
+
+		private void WriteHeader(int block, BlockHeader header)
+		{
+			Int32 pos = block * sizeof(BlockHeader);
+			_view.Write (pos++, header.status);
+			_view.Write (pos, header.size);
 		}
 
 		public void Write(int block, byte[] data)
 		{
 			// Assert data length is equal to block size (file size is divisible by this).
+			if (data.Length > BlockSize)
+				throw new BlockException ("Block {0} too large at {1} bytes", block, data.Length);
+			BlockHeader header = ReadHeader(block);
 			// Assert requested block is unused.
-			// Create block header
-			// Write block data & header.
+			if (!header.status.HasFlag(BlockStatus.Free))
+				throw new BlockException ("Block {0} in use", block);
+			// Write block header
+			header.status = BlockStatus.Used;
+			header.size = data.Length;
+			WriteHeader(block, header);
+			// Write block data.
+			Int32 offset = BlockTableSize + (block * BlockSize);
+			_view.WriteArray (offset, data);
+			_view.Flush ();
 		}
 
-		public int Append(byte[] data)
+		public void Write(byte[] data)
 		{
-			// Assert data length is equal to block size (file size is divisible by this).
-			// Search for free space.
-			// Assert free space is available.
-			// Write data to free space.
-			// Increment FreeBlock.
-			// Return block id.
+			Write (Index, data);
+			return Index++;
 		}
 
 		public byte[] Read(int block)
 		{
+			BlockHeader header = ReadHeader(block);
 			// Assert block is used.
+			if (header.status != BlockStatus.Used)
+				throw new BlockException ("Block {0} unused", block);
 			// Return block data.
+			Int32 offset = BlockTableSize + (block * BlockSize);
+			byte[] data = new byte[header.size];
+			_view.ReadArray (offset, data, 0, data.Length);
+			return data;
 		}
 
 		public void Delete(int block)
 		{
+			BlockHeader header = ReadHeader(block);
 			// Assert block is used.
-			// Update block header to 0.
-			// Set FreeBlock to `block`.
+			if (header.status != BlockStatus.Used)
+				throw new BlockException ("Block {0} unused", block);
+			header.status = BlockStatus.Free;
+			header.size = 0;
+			// Update block header.
+			WriteHeader(block, header);
+			_view.Flush ();
 		}
 	}
 }

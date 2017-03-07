@@ -1,6 +1,7 @@
 ﻿using System;
+using System.IO;
 
-namespace CloudstrypeArray.Lib
+namespace CloudstrypeArray.Lib.Storage
 {
 	public class Storage
 	{
@@ -21,15 +22,21 @@ namespace CloudstrypeArray.Lib
 		{
 			Path = path;
 			TotalSize = totalSize;
-			Index = new StorageIndex(path, totalSize);
-			this.Open ();
+			this.Open();
 		}
 
 		public void Open()
 		{
 			// Open StorageIndex.
-			this.Index.Open();
+			Index = new StorageIndex(path, totalSize);
 			// Calculate number of StorageFiles needed to store TotalSize.
+			int fileCount = TotalSize / StorageFile.MaxSize;
+			Files = new StorageFile[fileCount];
+			for (int i = 0; i < fileCount; i++) {
+				string name = string.Format("array-{0}.db", i);
+				string path = Path.Combine(Path, name);
+				Files [i] = new StorageFile(path);
+			}
 			// Open that many files.
 		}
 

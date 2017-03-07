@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace CloudstrypeArray.Lib
+namespace CloudstrypeArray.Lib.Storage
 {
 	public class BlockLocation
 	{

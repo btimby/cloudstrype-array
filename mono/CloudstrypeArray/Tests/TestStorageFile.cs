@@ -1,14 +1,18 @@
 ﻿using NUnit.Framework;
 using System;
 
+using CloudStrypeArray.Lib;
+
 namespace Tests
 {
 	[TestFixture ()]
-	public class Test
+	public class TestStorageFile
 	{
 		[Test ()]
 		public void TestCase ()
 		{
+			StorageFile file = new StorageFile ("");
+			file.Write ();
 		}
 	}
 }

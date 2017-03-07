@@ -2,7 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace CloudstrypeArray.Lib
+namespace CloudstrypeArray.Lib.Network
 {
 	public class Client
 	{
