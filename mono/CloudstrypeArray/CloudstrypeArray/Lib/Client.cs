@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 
 namespace CloudstrypeArray.Lib
 {
@@ -11,7 +12,8 @@ namespace CloudstrypeArray.Lib
 		// This client connects to the server, but then acts like a
 		// server by receiving commands and executing them.
 
-		protected Socket Connection;
+		protected Socket _sock;
+		protected ClientWebSocket _ws;
 
 		public Client()
 		{
