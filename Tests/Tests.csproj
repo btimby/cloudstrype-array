@@ -35,15 +35,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestStorage.cs" />
+    <Compile Include="TestNetwork.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CloudstrypeArray\CloudstrypeArray.csproj">
       <Project>{8352669B-46F1-4A7A-99EA-483150ACE26D}</Project>
       <Name>CloudstrypeArray</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
