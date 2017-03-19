@@ -3,62 +3,88 @@ using System.IO;
 
 namespace CloudstrypeArray.Lib.Storage
 {
+	public class StorageFullException : Exception
+	{
+		public StorageFullException(string msg) : base(msg) { }
+	}
+
 	public class Storage
 	{
-		// Implements a key/value store that is backed by a memory-mapped
-		// file.
+		// Implements a key/value store that is backed by a data directory
+		// containing files.
+		//
+		// .cloudstrype/<id of chunk>
 
-		public string Path;
-		public long TotalSize;
-
-		protected StorageIndex Index;
-		protected StorageFile[] Files;
-
-		// Point to last file with free space. Searching increments this
-		// value until free space is found.
-		protected int FreeFile = 0;
+		public string Root;
+		public long TotalSize = -1;
+		public long UsedSize = 0;
 
 		public Storage(string path, long totalSize)
 		{
-			Path = path;
 			TotalSize = totalSize;
-			this.Open();
+			Open (path);
 		}
 
-		public void Open()
+		public Storage(string path) : this(path, -1) { }
+
+		public Storage(long totalSize) : this(Path.GetTempPath(), totalSize) { }
+
+		public Storage() : this(Path.GetTempPath(), -1) { }
+
+		protected void Open(string path)
 		{
-			// Open StorageIndex.
-			Index = new StorageIndex(path, totalSize);
-			// Calculate number of StorageFiles needed to store TotalSize.
-			int fileCount = TotalSize / StorageFile.MaxSize;
-			Files = new StorageFile[fileCount];
-			for (int i = 0; i < fileCount; i++) {
-				string name = string.Format("array-{0}.db", i);
-				string path = Path.Combine(Path, name);
-				Files [i] = new StorageFile(path);
+			string fullPath = Path.Combine(path, ".cloudstrype");
+			if (!File.Exists(fullPath))
+				Directory.CreateDirectory(fullPath);
+			Root = fullPath;
+			UsedSize = GetUsedSize ();
+		}
+
+		protected long GetUsedSize()
+		{
+			long size = 0;
+			string[] files = List ();
+			for (int i = 0; i < files.Length; i++) {
+				size += new FileInfo (Path.Combine (Root, files[i])).Length;
 			}
-			// Open that many files.
+			return size;
 		}
 
 		public void Write(string id, byte[] data)
 		{
-			// Search for free space in `Files`.
-			// Assert free space is available.
-			// Write block.
-			// Add id to Index.
+			if (TotalSize != -1 && UsedSize + data.Length > TotalSize)
+				throw new StorageFullException ("Storage allocation consumed");
+			string fullPath = Path.Combine (Root, id);
+			// Open FileStream directly so we can prevent overwriting existing file.
+			using (FileStream file = 
+				new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+			{
+				file.Write (data, 0, data.Length);
+			}
+			UsedSize += data.Length;
 		}
 
 		public byte[] Read(string id)
 		{
-			// Read file, offset tuple from `Index`.
-			// Read and return data from referenced `StorageFile`.
+			string fullPath = Path.Combine (Root, id);
+			using (FileStream file = File.OpenRead (fullPath)) {
+				byte[] data = new byte[file.Length];
+				file.Read (data, 0, data.Length);
+				return data;
+			}
 		}
 
 		public void Delete(string id)
 		{
-			// Read file, offset tuple from `Index`.
-			// Delete from Index.
-			// Delete from referenced `StorageFile`.
+			string fullPath = Path.Combine (Root, id);
+			long size = new FileInfo (fullPath).Length;
+			File.Delete (fullPath);
+			UsedSize -= size;
+		}
+
+		public string[] List()
+		{
+			return Directory.GetFiles (Root);
 		}
 	}
 }
