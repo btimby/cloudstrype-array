@@ -56,6 +56,7 @@ namespace CloudstrypeArray
 							break;
 						case CommandType.Put:
 							_store.Write (cmd.ID, cmd.Data);
+							cmd.Data = null;
 							break;
 						case CommandType.Delete:
 							_store.Delete (cmd.ID);
@@ -103,7 +104,7 @@ namespace CloudstrypeArray
 	{
 		public static void Main (string[] args)
 		{
-			Server s = new Server ("ws://localhost:8765", "40dd1e40-544d-db46-9f67-df0cae847909");
+			Server s = new Server ("tcp://localhost:8765", "40dd1e40-544d-db46-9f67-df0cae847909");
 			s.Start ();
 			// Console.ReadLine() won't work without console. Console breaks
 			// debugger.

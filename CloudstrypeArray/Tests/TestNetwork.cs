@@ -12,7 +12,7 @@ namespace Tests
 		[SetUp]
 		public void Init()
 		{
-			Client = new Client ("ws://localhost:8765/", Guid.Parse ("40dd1e40-544d-db46-9f67-df0cae847909"));
+			Client = new Client ("tcp://localhost:8765/", Guid.Parse ("40dd1e40-544d-db46-9f67-df0cae847909"));
 			Client.Connect ();
 		}
 

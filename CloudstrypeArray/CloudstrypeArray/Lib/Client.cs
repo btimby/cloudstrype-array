@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using log4net;
 
 namespace CloudstrypeArray.Lib.Network
@@ -14,7 +13,8 @@ namespace CloudstrypeArray.Lib.Network
 	{
 		Get = 0,
 		Put = 1,
-		Delete = 2
+		Delete = 2,
+		Ping = 3
 	}
 
 	public enum CommandStatus : byte
@@ -54,7 +54,7 @@ namespace CloudstrypeArray.Lib.Network
 			}
 		}
 
-		public byte[] ToBytes()
+		public byte[] ToByteArray()
 		{
 			byte[] data = new byte[30 + Length];
 			data [0] = (byte)Type;
@@ -68,9 +68,9 @@ namespace CloudstrypeArray.Lib.Network
 			return data;
 		}
 
-		public static Command Parse(byte[] data, int len)
+		public static Command Parse(byte[] data)
 		{
-			if (len != 30)
+			if (data.Length != 30)
 				throw new InvalidCommandException ("Not enough data");
 			// Name is UP TO 24 bytes in length. If we find a null byte
 			// then the name is shorter than 24 bytes.
@@ -84,20 +84,6 @@ namespace CloudstrypeArray.Lib.Network
 			cmd.Length = BitConverter.ToInt32 (data, 26);
 			return cmd;
 		}
-
-		public static bool TryParse(byte[] data, int len, out Command cmd)
-		{
-			cmd = null;
-			try
-			{
-				cmd = Parse(data, len);
-				return true;
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-		}
 	}
 
 	public class Client
@@ -105,7 +91,7 @@ namespace CloudstrypeArray.Lib.Network
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(Client));
 
 		// Implements a network client.
-		protected ClientWebSocket _ws;
+		protected Socket _socket;
 		protected Guid ID;
 		protected Uri Url;
 
@@ -113,33 +99,19 @@ namespace CloudstrypeArray.Lib.Network
 		{
 			Url = new Uri (url);
 			ID = id;
-			_ws = new ClientWebSocket ();
-			_ws.Options.KeepAliveInterval = TimeSpan.FromSeconds (30);
+			_socket = new Socket (SocketType.Stream, ProtocolType.IP);
 		}
 
 		public void Connect()
 		{
-			Task t;
-			t = _ws.ConnectAsync (Url, CancellationToken.None);
-			t.Wait ();
-			// Send our name to server.
 			byte[] name = ID.ToByteArray();
-			Util.FixGuid (ref name);
-			t = _ws.SendAsync (
-				new ArraySegment<byte>(name),
-				WebSocketMessageType.Binary,
-				true,
-				CancellationToken.None);
-			t.Wait ();
+			_socket.Connect (Url.Host, Url.Port);
+			Debug.Assert(_socket.Send (name) == name.Length);
 		}
 
 		public void Close()
 		{
-			Task t = _ws.CloseAsync (
-				WebSocketCloseStatus.NormalClosure,
-				"",
-				CancellationToken.None);
-			t.Wait ();
+			_socket.Close ();
 		}
 
 		public void Reconnect()
@@ -155,36 +127,20 @@ namespace CloudstrypeArray.Lib.Network
 
 		public Command Receive()
 		{
-			if (_ws.State != WebSocketState.Open)
-				throw new WebSocketException ();
-			Task<WebSocketReceiveResult> t;
 			byte[] data = new byte[30];
-			t = _ws.ReceiveAsync (
-				new ArraySegment<byte> (data), CancellationToken.None);
-			t.Wait ();
-			Command cmd = Command.Parse (data, t.Result.Count);
-			if (cmd.Length > 0)
-			{
+			Debug.Assert(_socket.Receive (data) == data.Length);
+			Command cmd = Command.Parse (data);
+			if (cmd.Length > 0) {
 				cmd.Data = new byte[cmd.Length];
-				t = _ws.ReceiveAsync (
-					new ArraySegment<byte> (cmd.Data),
-					CancellationToken.None);
-				t.Wait ();
-				Debug.Assert (t.Result.Count == cmd.Length);
+				Debug.Assert(_socket.Receive (cmd.Data) == cmd.Length);
 			}
 			return cmd;
 		}
 
 		public void Send(Command cmd)
 		{
-			if (_ws.State != WebSocketState.Open)
-				throw new WebSocketException ();
-			byte[] data = cmd.ToBytes ();
-			Task t = _ws.SendAsync (
-				new ArraySegment<byte> (data),
-				WebSocketMessageType.Text,
-				true, CancellationToken.None);
-			t.Wait ();
+			byte[] data = cmd.ToByteArray ();
+			Debug.Assert(_socket.Send (data) == data.Length);
 		}
 	}
 }
