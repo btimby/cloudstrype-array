@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using log4net;
 
 namespace CloudstrypeArray.Lib.Storage
 {
@@ -10,6 +11,8 @@ namespace CloudstrypeArray.Lib.Storage
 
 	public class Storage
 	{
+		private static readonly ILog Logger = LogManager.GetLogger(typeof(Storage));
+
 		// Implements a key/value store that is backed by a data directory
 		// containing files.
 		//
