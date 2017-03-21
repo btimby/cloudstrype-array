@@ -27,7 +27,7 @@ namespace Tests
 		{
 			Client.Receive ();
 
-			Command cmd = new Command (CommandType.Get, "123412341234123412341234");
+			Command cmd = new Command (CommandType.Get, CommandStatus.None, "123412341234123412341234");
 			cmd.Length = 4;
 			cmd.Data = new byte[] { 65, 65, 65, 65 };
 			Client.Send(cmd);

@@ -1,8 +1,8 @@
 language: csharp
 script:
-  - xbuild /p:Configuration=Debug mono/CloudstrypeArray/CloudstrypeArray.sln
-  - nunit-console mono/CloudstrypeArray/Tests/bin/Debug/Tests.dll
+  - xbuild /p:Configuration=Debug CloudstrypeArray/CloudstrypeArray.sln
+  - nunit-console CloudstrypeArray/Tests/bin/Debug/Tests.dll
 before_install:
   - sudo apt-get install nunit-console
 before_script:
-  - nuget restore mono/CloudstrypeArray/CloudstrypeArray.sln
+  - nuget restore CloudstrypeArray/CloudstrypeArray.sln
