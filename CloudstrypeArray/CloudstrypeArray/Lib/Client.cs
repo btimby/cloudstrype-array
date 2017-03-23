@@ -33,15 +33,26 @@ namespace CloudstrypeArray.Lib.Network
 	{
 		public CommandType Type;
 		public CommandStatus Status = 0;
-		public string ID;
-		public int Length = 0;
-		public byte[] _data = null;
+		public int IDLength = 0;
+		public int DataLength = 0;
 
-		public Command(CommandType type, CommandStatus status, string id)
+		protected byte[] _data = null;
+		protected string _id = null;
+
+		private static readonly ILog Logger = LogManager.GetLogger(typeof(Command));
+
+		public Command(CommandType type, CommandStatus status, int idLength, int dataLength)
 		{
 			Type = type;
 			Status = status;
-			ID = id;
+			IDLength = idLength;
+			DataLength = dataLength;
+		}
+
+		public int Length{
+			get {
+				return IDLength + DataLength;
+			}
 		}
 
 		public byte[] Data {
@@ -49,39 +60,54 @@ namespace CloudstrypeArray.Lib.Network
 				return _data;
 			}
 			set {
-				Length = (value == null)?0:value.Length;
+				DataLength = (value == null) ? 0 : value.Length;
 				_data = value;
+			}
+		}
+
+		public string ID {
+			get {
+				return _id;
+			}
+			set {
+				IDLength = (value == null) ? 0 : value.Length;
+				_id = value;
 			}
 		}
 
 		public byte[] ToByteArray()
 		{
-			byte[] data = new byte[30 + Length];
+			byte[] data = new byte[10 + Length];
+			// These two are simple.
 			data [0] = (byte)Type;
 			data [1] = (byte)Status;
-			Array.Copy (Encoding.ASCII.GetBytes (ID), 0, data, 2, ID.Length);
-			byte[] len = BitConverter.GetBytes (Length);
-			Array.Copy(len, 0, data, 26, len.Length);
+			// Convert our ints to 4 byte arrays and pack them.
+			byte[] idLength = BitConverter.GetBytes (IDLength);
+			Array.Copy(idLength, 0, data, 2, idLength.Length);
+			byte[] dataLength = BitConverter.GetBytes (DataLength);
+			Array.Copy(dataLength, 0, data, 6, dataLength.Length);
+			// Convert our variable length buffers and pack them.
+			if (ID != null) {
+				byte[] idBytes = Encoding.ASCII.GetBytes (ID);
+				Debug.Assert (idBytes.Length == IDLength);
+				Array.Copy (idBytes, 0, data, 10, idBytes.Length);
+			}
 			if (Data != null) {
-				Array.Copy (Data, 0, data, 30, Data.Length); 
+				Debug.Assert (Data.Length == DataLength);
+				Array.Copy (Data, 0, data, 10+IDLength, Data.Length); 
 			}
 			return data;
 		}
 
-		public static Command Parse(byte[] data)
+		public static Command ParseHeader(byte[] data)
 		{
-			if (data.Length != 30)
-				throw new InvalidCommandException ("Not enough data");
-			// Name is UP TO 24 bytes in length. If we find a null byte
-			// then the name is shorter than 24 bytes.
-			int nullPos = Array.IndexOf<byte> (data, 0, 2) - 1;
-			nullPos = Math.Min (nullPos, 24);
 			// Parse the fix-sized portion of the command.
+			int idLength = BitConverter.ToInt32 (data, 2);
+			int dataLength = BitConverter.ToInt32 (data, 6);
 			Command cmd = new Command (
 				(CommandType)data[0],
 				(CommandStatus)data[1],
-				Encoding.ASCII.GetString(data, 2, nullPos));
-			cmd.Length = BitConverter.ToInt32 (data, 26);
+				idLength, dataLength);
 			return cmd;
 		}
 	}
@@ -99,12 +125,13 @@ namespace CloudstrypeArray.Lib.Network
 		{
 			Url = new Uri (url);
 			ID = id;
-			_socket = new Socket (SocketType.Stream, ProtocolType.IP);
 		}
 
 		public void Connect()
 		{
+			Logger.DebugFormat ("Opening connection to {0}", Url);
 			byte[] name = ID.ToByteArray();
+			_socket = new Socket (SocketType.Stream, ProtocolType.IP);
 			_socket.Connect (Url.Host, Url.Port);
 			Debug.Assert(_socket.Send (name) == name.Length);
 		}
@@ -112,6 +139,7 @@ namespace CloudstrypeArray.Lib.Network
 		public void Close()
 		{
 			_socket.Close ();
+			_socket.Dispose ();
 		}
 
 		public void Reconnect()
@@ -127,19 +155,34 @@ namespace CloudstrypeArray.Lib.Network
 
 		public Command Receive()
 		{
-			byte[] data = new byte[30];
+			byte[] data = new byte[10];
 			Debug.Assert(_socket.Receive (data) == data.Length);
-			Command cmd = Command.Parse (data);
+			Command cmd = Command.ParseHeader (data);
 			if (cmd.Length > 0) {
-				cmd.Data = new byte[cmd.Length];
-				Debug.Assert(_socket.Receive (cmd.Data) == cmd.Length);
+				byte[] idBytes = new byte[cmd.IDLength];
+				Debug.Assert(_socket.Receive (idBytes) == cmd.IDLength);
+				int nullPos = Array.IndexOf<byte> (idBytes, 0, 0);
+				nullPos = nullPos > -1 ? nullPos : idBytes.Length;
+				cmd.ID = Encoding.ASCII.GetString (idBytes, 0, nullPos );
+				cmd.Data = new byte[cmd.DataLength];
+				Debug.Assert(_socket.Receive (cmd.Data) == cmd.DataLength);
 			}
+			Logger.DebugFormat ("Received {0} bytes", cmd.Length + 10);
+			Logger.DebugFormat (
+				"Recv({0}): {1}({2}), {3}, id {4} bytes, payload {5} bytes",
+				ID, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
+				cmd.IDLength, cmd.DataLength);
 			return cmd;
 		}
 
 		public void Send(Command cmd)
 		{
 			byte[] data = cmd.ToByteArray ();
+			Logger.DebugFormat ("Sending {0} bytes", data.Length);
+			Logger.DebugFormat (
+				"Send({0}): {1}({2}), {3}, id {4} bytes, payload {5} bytes",
+				ID, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
+				cmd.IDLength, cmd.DataLength);
 			Debug.Assert(_socket.Send (data) == data.Length);
 		}
 	}

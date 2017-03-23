@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Net.WebSockets;
 using System.Threading;
+using System.Net.Sockets;
 using CloudstrypeArray.Lib.Storage;
 using CloudstrypeArray.Lib.Network;
 using log4net;
@@ -68,7 +68,6 @@ namespace CloudstrypeArray
 					{
 						Logger.Error(e);
 						cmd.Status = CommandStatus.Error;
-						cmd.Length = 0;
 						cmd.Data = null;
 					}
 					_client.Send (cmd);
@@ -77,7 +76,7 @@ namespace CloudstrypeArray
 					Logger.Error (e);
 					_client.Reconnect ();
 				}
-				catch (WebSocketException e) {
+				catch (SocketException e) {
 					Logger.Error (e);
 					_client.Reconnect ();
 				}
@@ -104,6 +103,7 @@ namespace CloudstrypeArray
 	{
 		public static void Main (string[] args)
 		{
+			log4net.Config.XmlConfigurator.Configure();
 			Server s = new Server ("tcp://localhost:8765", "40dd1e40-544d-db46-9f67-df0cae847909");
 			s.Start ();
 			// Console.ReadLine() won't work without console. Console breaks

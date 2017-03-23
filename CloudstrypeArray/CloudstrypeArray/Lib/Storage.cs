@@ -50,6 +50,7 @@ namespace CloudstrypeArray.Lib.Storage
 			for (int i = 0; i < files.Length; i++) {
 				size += new FileInfo (Path.Combine (Root, files[i])).Length;
 			}
+			Logger.DebugFormat ("Using {0} bytes in {1}", size, Root);
 			return size;
 		}
 
@@ -58,6 +59,7 @@ namespace CloudstrypeArray.Lib.Storage
 			if (TotalSize != -1 && UsedSize + data.Length > TotalSize)
 				throw new StorageFullException ("Storage allocation consumed");
 			string fullPath = Path.Combine (Root, id);
+			Logger.DebugFormat ("Writing {0} bytes to {1}", data.Length, fullPath);
 			// Open FileStream directly so we can prevent overwriting existing file.
 			using (FileStream file = 
 				new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -70,6 +72,7 @@ namespace CloudstrypeArray.Lib.Storage
 		public byte[] Read(string id)
 		{
 			string fullPath = Path.Combine (Root, id);
+			Logger.DebugFormat ("Reading from {0}", fullPath);
 			using (FileStream file = File.OpenRead (fullPath)) {
 				byte[] data = new byte[file.Length];
 				file.Read (data, 0, data.Length);
@@ -80,6 +83,7 @@ namespace CloudstrypeArray.Lib.Storage
 		public void Delete(string id)
 		{
 			string fullPath = Path.Combine (Root, id);
+			Logger.DebugFormat ("Deleting {0}", fullPath);
 			long size = new FileInfo (fullPath).Length;
 			File.Delete (fullPath);
 			UsedSize -= size;
