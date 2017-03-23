@@ -159,13 +159,18 @@ namespace CloudstrypeArray.Lib.Network
 			Debug.Assert(_socket.Receive (data) == data.Length);
 			Command cmd = Command.ParseHeader (data);
 			if (cmd.Length > 0) {
-				byte[] idBytes = new byte[cmd.IDLength];
-				Debug.Assert(_socket.Receive (idBytes) == cmd.IDLength);
-				int nullPos = Array.IndexOf<byte> (idBytes, 0, 0);
-				nullPos = nullPos > -1 ? nullPos : idBytes.Length;
-				cmd.ID = Encoding.ASCII.GetString (idBytes, 0, nullPos );
+				data = new byte[cmd.Length];
+				Debug.Assert(_socket.Receive (data) == cmd.Length);
+
+				// Find the length of the ID string.
+				int nullPos = Array.IndexOf<byte> (data, 0, 0);
+				nullPos = nullPos > -1 ? nullPos : cmd.IDLength;
+				nullPos = Math.Min (nullPos, cmd.IDLength);
+				cmd.ID = Encoding.ASCII.GetString (data, 0, nullPos );
+
+				// Copy the data buffer.
 				cmd.Data = new byte[cmd.DataLength];
-				Debug.Assert(_socket.Receive (cmd.Data) == cmd.DataLength);
+				Array.Copy (data, cmd.IDLength, cmd.Data, 0, cmd.DataLength);
 			}
 			Logger.DebugFormat ("Received {0} bytes", cmd.Length + 10);
 			Logger.DebugFormat (
