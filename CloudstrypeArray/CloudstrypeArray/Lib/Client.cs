@@ -117,8 +117,9 @@ namespace CloudstrypeArray.Lib.Network
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(Client));
 
 		// Implements a network client.
+		public Guid ID;
+
 		protected Socket _socket;
-		protected Guid ID;
 		protected Uri Url;
 
 		public Client(string url, Guid id)
@@ -168,7 +169,7 @@ namespace CloudstrypeArray.Lib.Network
 				nullPos = Math.Min (nullPos, cmd.IDLength);
 				cmd.ID = Encoding.ASCII.GetString (data, 0, nullPos );
 
-				// Copy the data buffer.
+				// Copy the data buffer
 				cmd.Data = new byte[cmd.DataLength];
 				Array.Copy (data, cmd.IDLength, cmd.Data, 0, cmd.DataLength);
 			}

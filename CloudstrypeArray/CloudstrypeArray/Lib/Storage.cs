@@ -19,12 +19,12 @@ namespace CloudstrypeArray.Lib.Storage
 		// .cloudstrype/<id of chunk>
 
 		public string Root;
-		public long TotalSize = -1;
+		public long Size = -1;
 		public long UsedSize = 0;
 
-		public Storage(string path, long totalSize)
+		public Storage(string path, long size)
 		{
-			TotalSize = totalSize;
+			Size = size;
 			Open (path);
 		}
 
@@ -56,7 +56,7 @@ namespace CloudstrypeArray.Lib.Storage
 
 		public void Write(string id, byte[] data)
 		{
-			if (TotalSize != -1 && UsedSize + data.Length > TotalSize)
+			if (Size != -1 && UsedSize + data.Length > Size)
 				throw new StorageFullException ("Storage allocation consumed");
 			string fullPath = Path.Combine (Root, id);
 			Logger.DebugFormat ("Writing {0} bytes to {1}", data.Length, fullPath);

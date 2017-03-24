@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Net.Sockets;
+using System.Configuration;
 using CloudstrypeArray.Lib.Storage;
 using CloudstrypeArray.Lib.Network;
+using DocoptNet;
 using log4net;
 
 namespace CloudstrypeArray
@@ -18,10 +20,10 @@ namespace CloudstrypeArray
 		protected Client _client;
 		protected Storage _store;
 
-		public Server(string url, string guid)
+		public Server(string url, string guid, long size)
 		{
 			_client = new Client (url, Guid.Parse(guid));
-			_store = new Storage ();
+			_store = new Storage (size);
 			_thread = new Thread (Run);
 		}
 
@@ -101,10 +103,54 @@ namespace CloudstrypeArray
 
 	class MainClass
 	{
+		private static readonly ILog Logger = LogManager.GetLogger(typeof(MainClass));
+
+		private const string USAGE = @"CloudstrypeArray.exe
+
+	Connects to Cloudstrype server and provides additional storage for striping
+	files. Any storage presented by attached array clients will be added to the
+	pool of available storage which may also include cloud storage providers.
+
+	Usage:
+		cloudstrypearray.exe [--server=<url> --name=<uuid> --size=<size>]
+
+	Options:
+		-s --server		Server to connect to [default: ssl://cloudstrype.com:8765]
+		-n --name		Name for this node. Hex form of UUID/GUID.
+		-z --size		Maximum size of data to provide. [default: 10GB]
+";
+		
 		public static void Main (string[] args)
 		{
 			log4net.Config.XmlConfigurator.Configure();
-			Server s = new Server ("tcp://localhost:8765", "40dd1e40-544d-db46-9f67-df0cae847909");
+
+			string server, name;
+			long size;
+
+			server = ConfigurationManager.AppSettings["server"].ToString();
+			name = ConfigurationManager.AppSettings["name"].ToString();
+			size = Convert.ToInt64(ConfigurationManager.AppSettings["size"].ToString());
+
+			var arguments = new Docopt ().Apply (
+				USAGE, args, version: "CloudstrypeArray.exe 1.0", exit: true);
+
+			if (arguments.ContainsKey ("--server")) {
+				Logger.DebugFormat (
+					"Overridding configured server {0} with command line {1}", server, arguments["--server"]);
+				server = (string)arguments ["--server"].ToString();
+			}
+			if (arguments.ContainsKey ("--name")) {
+				Logger.DebugFormat (
+					"Overridding configured name {0} with command line {1}", name, arguments["--name"]);
+				name = (string)arguments ["--name"].ToString();
+			}
+			if (arguments.ContainsKey ("--size")) {
+				Logger.DebugFormat (
+					"Overridding configured size {0} with command line {1}", size, arguments["--size"]);
+				size = Convert.ToInt64 (arguments ["--size"]);
+			}
+
+			Server s = new Server (server, name, size);
 			s.Start ();
 			// Console.ReadLine() won't work without console. Console breaks
 			// debugger.
