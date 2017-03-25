@@ -138,7 +138,7 @@ namespace CloudstrypeArray.Lib.Network
 			_socket.ReceiveTimeout = 1000;
 			_socket.Connect (Url.Host, Url.Port);
 			if (Url.Scheme.ToLower () == "ssl") {
-				_stream = (Stream)(new SslStream (new NetworkStream (_socket)));
+				_stream = new SslStream (new NetworkStream (_socket));
 			}
 			else
 			{
