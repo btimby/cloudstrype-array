@@ -57,12 +57,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include="app.config" />
-    <None Include="Main.usage.txt" />
-    <None Include="T4DocoptNet.tt" />
-    <None Include="T4DocoptNet.tt.hooks.t4" />
-    <None Include="T4DocoptNet.tt.settings.xml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Lib\" />

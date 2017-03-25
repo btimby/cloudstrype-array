@@ -1,10 +1,12 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Net.Security;
 using log4net;
 
 namespace CloudstrypeArray.Lib.Network
@@ -120,6 +122,7 @@ namespace CloudstrypeArray.Lib.Network
 		public Guid ID;
 
 		protected Socket _socket;
+		protected Stream _stream;
 		protected Uri Url;
 
 		public Client(string url, Guid id)
@@ -131,15 +134,25 @@ namespace CloudstrypeArray.Lib.Network
 		public void Connect()
 		{
 			Logger.DebugFormat ("Opening connection to {0}", Url);
-			byte[] name = ID.ToByteArray();
 			_socket = new Socket (SocketType.Stream, ProtocolType.IP);
+			_socket.ReceiveTimeout = 1000;
 			_socket.Connect (Url.Host, Url.Port);
-			Debug.Assert(_socket.Send (name) == name.Length);
+			if (Url.Scheme.ToLower () == "ssl") {
+				_stream = (Stream)(new SslStream (new NetworkStream (_socket)));
+			}
+			else
+			{
+				_stream = new NetworkStream (_socket);
+			}
+			byte[] name = ID.ToByteArray();
+			_stream.Write(name, 0, name.Length);
 		}
 
 		public void Close()
 		{
+			_stream.Close ();
 			_socket.Close ();
+			_stream.Dispose ();
 			_socket.Dispose ();
 		}
 
@@ -157,11 +170,21 @@ namespace CloudstrypeArray.Lib.Network
 		public Command Receive()
 		{
 			byte[] data = new byte[10];
-			Debug.Assert(_socket.Receive (data) == data.Length);
+			try
+			{
+				_stream.Read(data, 0, data.Length);
+			}
+			catch (SocketException e)
+			{
+				// If we timed out, just return null.
+				if (e.ErrorCode == 10035)
+					return null;
+				throw;
+			}
 			Command cmd = Command.ParseHeader (data);
 			if (cmd.Length > 0) {
 				data = new byte[cmd.Length];
-				Debug.Assert(_socket.Receive (data) == cmd.Length);
+				_stream.Read (data, 0, data.Length);
 
 				// Find the length of the ID string.
 				int nullPos = Array.IndexOf<byte> (data, 0, 0);
@@ -189,7 +212,7 @@ namespace CloudstrypeArray.Lib.Network
 				"Send({0}): {1}({2}), {3}, id {4} bytes, payload {5} bytes",
 				ID, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
 				cmd.IDLength, cmd.DataLength);
-			Debug.Assert(_socket.Send (data) == data.Length);
+			_stream.Write(data, 0, data.Length);
 		}
 	}
 }

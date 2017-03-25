@@ -24,6 +24,10 @@ namespace CloudstrypeArray.Lib.Storage
 
 		public Storage(string path, long size)
 		{
+			if (!path.EndsWith(".cloudstrype") && !path.EndsWith(".cloudstrype/"))
+			{
+				path = Path.Combine(path, ".cloudstrype");
+			}
 			Size = size;
 			Open (path);
 		}
@@ -36,10 +40,15 @@ namespace CloudstrypeArray.Lib.Storage
 
 		protected void Open(string path)
 		{
-			string fullPath = Path.Combine(path, ".cloudstrype");
-			if (!File.Exists(fullPath))
-				Directory.CreateDirectory(fullPath);
-			Root = fullPath;
+			try
+			{
+			if ((File.GetAttributes (path) & FileAttributes.Directory) != FileAttributes.Directory)
+				throw new IOException ("Cannot use file as storage location");
+			}
+			catch (FileNotFoundException) {
+				Directory.CreateDirectory (path);
+			}
+			Root = path;
 			UsedSize = GetUsedSize ();
 		}
 

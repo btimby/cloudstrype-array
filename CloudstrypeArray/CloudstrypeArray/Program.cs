@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Net.Sockets;
 using System.Configuration;
+using CloudstrypeArray.Lib;
 using CloudstrypeArray.Lib.Storage;
 using CloudstrypeArray.Lib.Network;
 using DocoptNet;
@@ -20,10 +21,10 @@ namespace CloudstrypeArray
 		protected Client _client;
 		protected Storage _store;
 
-		public Server(string url, string guid, long size)
+		public Server(string url, string guid, string path, long size)
 		{
 			_client = new Client (url, Guid.Parse(guid));
-			_store = new Storage (size);
+			_store = new Storage (path, size);
 			_thread = new Thread (Run);
 		}
 
@@ -45,11 +46,13 @@ namespace CloudstrypeArray
 		{
 			while (Running)
 			{
-				// TODO: we block here, so we need a way to cancel blocking when
-				// asked to Stop();
 				try
 				{
 					Command cmd = _client.Receive ();
+					// Null return indicates a timeout, which allows us to
+					// periodically check Running state.
+					if (cmd == null)
+						continue;
 					try
 					{
 						switch (cmd.Type) {
@@ -68,21 +71,28 @@ namespace CloudstrypeArray
 					}
 					catch (Exception e)
 					{
+						// Error executing the requested command, set the cmd up for
+						// sending an error reply to the server.
 						Logger.Error(e);
 						cmd.Status = CommandStatus.Error;
 						cmd.Data = null;
 					}
+					// Send our confirmation/error back to server.
 					_client.Send (cmd);
 				}
 				catch (InvalidCommandException e) {
+					// Usually due to a read error or we have become descynchronized
+					// from the server. Reconnect after logging.
 					Logger.Error (e);
 					_client.Reconnect ();
 				}
 				catch (SocketException e) {
+					// Communication error, reconnect after logging.
 					Logger.Error (e);
 					_client.Reconnect ();
 				}
 				catch (Exception e) {
+					// An exception, just log it and continue.
 					Logger.Error (e);
 				}
 			}
@@ -112,11 +122,12 @@ namespace CloudstrypeArray
 	pool of available storage which may also include cloud storage providers.
 
 	Usage:
-		cloudstrypearray.exe [--server=<url> --name=<uuid> --size=<size>]
+		cloudstrypearray.exe [--server=<url> --name=<uuid> --path=<path> --size=<size>]
 
 	Options:
-		-s --server		Server to connect to [default: ssl://cloudstrype.com:8765]
+		-s --server		Server to connect to [default: ssl://cloudstrype.io:8766]
 		-n --name		Name for this node. Hex form of UUID/GUID.
+		-p --path		Path at which to store data. [default: $HOME/.cloudstrype]
 		-z --size		Maximum size of data to provide. [default: 10GB]
 ";
 		
@@ -124,33 +135,41 @@ namespace CloudstrypeArray
 		{
 			log4net.Config.XmlConfigurator.Configure();
 
-			string server, name;
+			string server, name, path;
 			long size;
 
 			server = ConfigurationManager.AppSettings["server"].ToString();
 			name = ConfigurationManager.AppSettings["name"].ToString();
-			size = Convert.ToInt64(ConfigurationManager.AppSettings["size"].ToString());
+			path = ConfigurationManager.AppSettings["path"].ToString();
+			size = Util.ParseFileSize(ConfigurationManager.AppSettings["size"].ToString());
 
 			var arguments = new Docopt ().Apply (
 				USAGE, args, version: "CloudstrypeArray.exe 1.0", exit: true);
 
-			if (arguments.ContainsKey ("--server")) {
+			if (arguments["--server"] != null) {
 				Logger.DebugFormat (
 					"Overridding configured server {0} with command line {1}", server, arguments["--server"]);
 				server = (string)arguments ["--server"].ToString();
 			}
-			if (arguments.ContainsKey ("--name")) {
+			if (arguments["--name"] != null) {
 				Logger.DebugFormat (
 					"Overridding configured name {0} with command line {1}", name, arguments["--name"]);
 				name = (string)arguments ["--name"].ToString();
 			}
-			if (arguments.ContainsKey ("--size")) {
+			if (arguments["--path"] != null) {
+				Logger.DebugFormat (
+					"Overridding configured path {0} with command line {1}", path, arguments["--path"]);
+				path = (string)arguments ["--path"].ToString();
+			}
+			if (arguments["--size"] != null) {
 				Logger.DebugFormat (
 					"Overridding configured size {0} with command line {1}", size, arguments["--size"]);
 				size = Convert.ToInt64 (arguments ["--size"]);
 			}
 
-			Server s = new Server (server, name, size);
+			path = path.Replace ("$HOME", Util.GetHomeDirectory ());
+
+			Server s = new Server (server, name, path, size);
 			s.Start ();
 			// Console.ReadLine() won't work without console. Console breaks
 			// debugger.

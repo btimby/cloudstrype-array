@@ -43,6 +43,13 @@ namespace CloudstrypeArray.Lib
 			}
 			return (long)(numSize * Math.Pow(1024, pos));
 		}
+
+		public static string GetHomeDirectory()
+		{
+			// TODO, probably going to need more for Windows/Mac.
+			var home = Environment.GetEnvironmentVariable("HOME");
+			return home;
+		}
 	}
 }
 	
