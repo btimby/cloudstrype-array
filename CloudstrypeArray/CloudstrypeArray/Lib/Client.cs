@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Net.Security;
+using System.Security.Authentication;
 using log4net;
 
 namespace CloudstrypeArray.Lib.Network
@@ -138,12 +139,15 @@ namespace CloudstrypeArray.Lib.Network
 			_socket.ReceiveTimeout = 1000;
 			_socket.Connect (Url.Host, Url.Port);
 			if (Url.Scheme.ToLower () == "ssl") {
-				_stream = new SslStream (new NetworkStream (_socket));
+				_stream = new SslStream (new NetworkStream (_socket), false);
+				((SslStream)_stream).AuthenticateAsClient (
+					Url.Host, null, SslProtocols.Tls12, false);
 			}
 			else
 			{
 				_stream = new NetworkStream (_socket);
 			}
+			Logger.DebugFormat ("Connected, sending name {0}", ID);
 			byte[] name = ID.ToByteArray();
 			_stream.Write(name, 0, name.Length);
 		}

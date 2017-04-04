@@ -100,7 +100,14 @@ namespace CloudstrypeArray
 
 		public void Start()
 		{
-			_client.Connect ();
+			try
+			{
+				_client.Connect ();
+			}
+			catch (Exception e) {
+				Logger.Error (e);
+				throw;
+			}
 			_thread.Start ();
 		}
 
