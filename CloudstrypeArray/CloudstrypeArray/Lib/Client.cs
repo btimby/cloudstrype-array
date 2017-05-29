@@ -152,6 +152,7 @@ namespace CloudstrypeArray.Lib.Network
 			}
 			Logger.DebugFormat ("Connected, sending name {0}", ID);
 			byte[] name = ID.ToByteArray();
+			Util.FixGuid (ref name);
 			_stream.Write(name, 0, name.Length);
 		}
 
