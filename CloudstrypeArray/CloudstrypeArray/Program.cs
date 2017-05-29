@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Net.Sockets;
 using System.Configuration;
@@ -66,6 +67,14 @@ namespace CloudstrypeArray
 						case CommandType.Delete:
 							_store.Delete (cmd.ID);
 							break;
+						case CommandType.Stat:
+							byte[] data = new byte[16];
+							byte[] size = BitConverter.GetBytes (_store.Size);
+							Array.Copy(size, 0, data, 0, size.Length);
+							byte[] used = BitConverter.GetBytes (_store.UsedSize);
+							Array.Copy(used, 0, data, 8, used.Length);
+							cmd.Data = data;
+							break;
 						}
 						cmd.Status = CommandStatus.Success;
 					}
@@ -88,6 +97,14 @@ namespace CloudstrypeArray
 				}
 				catch (SocketException e) {
 					// Communication error, reconnect after logging.
+					Logger.Error (e);
+					_client.Reconnect ();
+				}
+				catch (IOException e){
+					Logger.Error (e);
+					_client.Reconnect ();
+				}
+				catch (ObjectDisposedException e) {
 					Logger.Error (e);
 					_client.Reconnect ();
 				}
@@ -150,6 +167,32 @@ namespace CloudstrypeArray
 			path = ConfigurationManager.AppSettings["path"].ToString();
 			size = Util.ParseFileSize(ConfigurationManager.AppSettings["size"].ToString());
 
+			var env = Environment.GetEnvironmentVariables ();
+
+			if (env["ARRAY_SERVER"] != null) {
+				Logger.DebugFormat (
+					"Overridding configured server {0} with environment {1}", server, env["ARRAY_SERVER"]);
+				server = (string)env["ARRAY_SERVER"].ToString();
+			}
+
+			if (env["ARRAY_NAME"] != null) {
+				Logger.DebugFormat (
+					"Overridding configured name {0} with environment {1}", name, env["ARRAY_NAME"]);
+				name = (string)env["ARRAY_NAME"].ToString();
+			}
+
+			if (env["ARRAY_PATH"] != null) {
+				Logger.DebugFormat (
+					"Overridding configured path {0} with environment {1}", path, env["ARRAY_PATH"]);
+				path = (string)env["ARRAY_PATH"].ToString();
+			}
+
+			if (env["ARRAY_SIZE"] != null) {
+				Logger.DebugFormat (
+					"Overridding configured size {0} with environment {1}", size, env["ARRAY_SIZE"]);
+				size = Util.ParseFileSize((string)env["ARRAY_SIZE"].ToString());
+			}
+
 			var arguments = new Docopt ().Apply (
 				USAGE, args, version: "CloudstrypeArray.exe 1.0", exit: true);
 
@@ -171,7 +214,7 @@ namespace CloudstrypeArray
 			if (arguments["--size"] != null) {
 				Logger.DebugFormat (
 					"Overridding configured size {0} with command line {1}", size, arguments["--size"]);
-				size = Convert.ToInt64 (arguments ["--size"]);
+				size = Util.ParseFileSize((string)arguments ["--size"].ToString());
 			}
 
 			path = path.Replace ("$HOME", Util.GetHomeDirectory ());

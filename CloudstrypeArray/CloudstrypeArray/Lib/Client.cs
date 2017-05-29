@@ -17,7 +17,8 @@ namespace CloudstrypeArray.Lib.Network
 		Get = 0,
 		Put = 1,
 		Delete = 2,
-		Ping = 3
+		Ping = 3,
+		Stat = 4
 	}
 
 	public enum CommandStatus : byte
@@ -136,7 +137,9 @@ namespace CloudstrypeArray.Lib.Network
 		{
 			Logger.DebugFormat ("Opening connection to {0}", Url);
 			_socket = new Socket (SocketType.Stream, ProtocolType.IP);
-			_socket.ReceiveTimeout = 1000;
+			// Set a long timeout, we just wait for commands. The server will send
+			// a keepalive every 30s.
+			_socket.ReceiveTimeout = 90000;
 			_socket.Connect (Url.Host, Url.Port);
 			if (Url.Scheme.ToLower () == "ssl") {
 				_stream = new SslStream (new NetworkStream (_socket), false);
@@ -174,17 +177,8 @@ namespace CloudstrypeArray.Lib.Network
 		public Command Receive()
 		{
 			byte[] data = new byte[10];
-			try
-			{
-				_stream.Read(data, 0, data.Length);
-			}
-			catch (SocketException e)
-			{
-				// If we timed out, just return null.
-				if (e.ErrorCode == 10035)
-					return null;
-				throw;
-			}
+			_stream.Read(data, 0, data.Length);
+
 			Command cmd = Command.ParseHeader (data);
 			if (cmd.Length > 0) {
 				data = new byte[cmd.Length];

@@ -28,6 +28,13 @@ namespace CloudstrypeArray.Lib.Storage
 			{
 				path = Path.Combine(path, ".cloudstrype");
 			}
+			string parent = Path.GetDirectoryName (path);
+			if (!Directory.Exists (parent)) {
+				throw new IOException (string.Format("Parent path {0} does not exist", parent));
+			}
+			if (!Directory.Exists (path)) {
+				Directory.CreateDirectory (path);
+			}
 			Size = size;
 			Open (path);
 		}

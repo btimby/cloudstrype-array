@@ -1,7 +1,6 @@
 language: csharp
 script:
-  - xbuild /p:Configuration=Debug CloudstrypeArray/CloudstrypeArray.sln
-  - nunit-console CloudstrypeArray/Tests/bin/Debug/Tests.dll
+  - make travis
 before_install:
   - sudo apt-get install nunit-console
 before_script:
