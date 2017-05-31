@@ -46,9 +46,7 @@ namespace CloudstrypeArray.Lib
 
 		public static string GetHomeDirectory()
 		{
-			// TODO, probably going to need more for Windows/Mac.
-			var home = Environment.GetEnvironmentVariable("HOME");
-			return home;
+			return Environment.GetEnvironmentVariable("HOME");
 		}
 	}
 }
