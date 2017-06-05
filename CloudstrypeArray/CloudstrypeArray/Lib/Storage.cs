@@ -87,11 +87,10 @@ namespace CloudstrypeArray.Lib.Storage
 			Logger.DebugFormat ("Reading from {0}", fullPath);
 			using (FileStream file = File.OpenRead (fullPath)) {
 				byte[] data = new byte[file.Length];
-				int bytesRead = 0;
-				while (bytesRead < data.Length) {
+				for (int bytesRead = 0; bytesRead < data.Length;) {
 					bytesRead += file.Read (data, bytesRead, data.Length - bytesRead);
+					Logger.DebugFormat ("Read {0} bytes from {1}", bytesRead, fullPath);
 				}
-				Logger.DebugFormat ("Read {0} bytes from {1}", bytesRead, fullPath);
 				return data;
 			}
 		}

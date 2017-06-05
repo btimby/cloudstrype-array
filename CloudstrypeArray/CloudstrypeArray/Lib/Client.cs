@@ -184,8 +184,7 @@ namespace CloudstrypeArray.Lib.Network
 			if (cmd.Length > 0) {
 				data = new byte[cmd.Length];
 				Logger.DebugFormat ("Reading {0} bytes of payload", cmd.Length);
-				int bytesRead = 0;
-				while (bytesRead < data.Length) {
+				for (int bytesRead = 0; bytesRead < data.Length;) {
 					bytesRead += _stream.Read (data, bytesRead, data.Length - bytesRead);
 					Logger.DebugFormat ("Received {0} bytes", bytesRead);
 				}
