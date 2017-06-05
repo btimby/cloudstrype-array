@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 using log4net;
 
 namespace CloudstrypeArray.Lib.Storage
@@ -16,50 +17,38 @@ namespace CloudstrypeArray.Lib.Storage
 		// Implements a key/value store that is backed by a data directory
 		// containing files.
 		//
-		// .cloudstrype/<id of chunk>
+		// <path>/.cloudstrype/id[0:2]/id[2:4]/<id of chunk>
 
 		public string Root;
 		public long Size = -1;
-		public long UsedSize = 0;
+		public long Used = 0;
+		public Guid Name;
 
-		public Storage(string path, long size)
+		public Storage(string path, long size, Guid name)
 		{
-			if (!path.EndsWith(".cloudstrype") && !path.EndsWith(".cloudstrype/"))
-			{
-				path = Path.Combine(path, ".cloudstrype");
-			}
-			string parent = Path.GetDirectoryName (path);
-			if (!Directory.Exists (parent)) {
-				throw new IOException (string.Format("Parent path {0} does not exist", parent));
-			}
-			if (!Directory.Exists (path)) {
-				Directory.CreateDirectory (path);
-			}
 			Size = size;
-			Open (path);
-		}
-
-		public Storage(string path) : this(path, -1) { }
-
-		public Storage(long totalSize) : this(Path.GetTempPath(), totalSize) { }
-
-		public Storage() : this(Path.GetTempPath(), -1) { }
-
-		protected void Open(string path)
-		{
-			try
-			{
-			if ((File.GetAttributes (path) & FileAttributes.Directory) != FileAttributes.Directory)
-				throw new IOException ("Cannot use file as storage location");
+			if (!Directory.Exists (path)) {
+				throw new IOException (string.Format("Path {0} does not exist", path));
 			}
-			catch (FileNotFoundException) {
-				Directory.CreateDirectory (path);
-			}
+			path = Path.Combine(path, ".cloudstrype", name.ToString());
+			Directory.CreateDirectory (path);
 			Root = path;
-			UsedSize = GetUsedSize ();
+			Used = GetUsed ();
 		}
 
-		protected long GetUsedSize()
+		public Storage() : this(Path.GetTempPath(), -1, Guid.NewGuid()) { }
+
+		protected string[] List() {
+			List<string> paths = new List<string> ();
+			foreach (string dir0 in Directory.GetDirectories(Root)) {
+				foreach (string dir1 in Directory.GetDirectories(Path.Combine (Root, dir0))) {
+					paths.AddRange (Directory.GetFiles (Path.Combine(dir0, dir1)));
+				}
+			}
+			return paths.ToArray ();
+		}
+
+		protected long GetUsed()
 		{
 			long size = 0;
 			string[] files = List ();
@@ -70,44 +59,57 @@ namespace CloudstrypeArray.Lib.Storage
 			return size;
 		}
 
+		protected string GetFullPath(string id) {
+			return Path.Combine (Root, id.Substring(0, 2), id.Substring(2, 2), id);
+		}
+
 		public void Write(string id, byte[] data)
 		{
-			if (Size != -1 && UsedSize + data.Length > Size)
-				throw new StorageFullException ("Storage allocation consumed");
-			string fullPath = Path.Combine (Root, id);
-			Logger.DebugFormat ("Writing {0} bytes to {1}", data.Length, fullPath);
-			// Open FileStream directly so we can prevent overwriting existing file.
-			using (FileStream file = 
-				new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-			{
+			if (Size != -1 && Used + data.Length > Size)
+				throw new StorageFullException ("Allocated space exhausted");
+			string fullPath = GetFullPath (id);
+			Logger.DebugFormat ("Writing to {0}", fullPath);
+			Directory.CreateDirectory (Path.GetDirectoryName (fullPath));
+			/* Allow overwriting. In theory we never overwrite, but in practice sometimes
+			* our transactions fail and we recycle chunk IDs. Also during development and
+			* testing this often happens. */
+			using (FileStream file = File.OpenWrite (fullPath)) {
+				// Account for used data by adding the net gain
+				Used += data.Length - file.Length;
 				file.Write (data, 0, data.Length);
 			}
-			UsedSize += data.Length;
+			Logger.DebugFormat ("Wrote {0} bytes to {1}", data.Length, fullPath);
 		}
 
 		public byte[] Read(string id)
 		{
-			string fullPath = Path.Combine (Root, id);
+			string fullPath = GetFullPath (id);
 			Logger.DebugFormat ("Reading from {0}", fullPath);
 			using (FileStream file = File.OpenRead (fullPath)) {
 				byte[] data = new byte[file.Length];
-				file.Read (data, 0, data.Length);
+				int bytesRead = 0;
+				while (bytesRead < data.Length) {
+					bytesRead += file.Read (data, bytesRead, data.Length - bytesRead);
+				}
+				Logger.DebugFormat ("Read {0} bytes from {1}", bytesRead, fullPath);
 				return data;
 			}
 		}
 
 		public void Delete(string id)
 		{
-			string fullPath = Path.Combine (Root, id);
+			string fullPath = GetFullPath (id);
 			Logger.DebugFormat ("Deleting {0}", fullPath);
-			long size = new FileInfo (fullPath).Length;
+			Used -= new FileInfo (fullPath).Length;
 			File.Delete (fullPath);
-			UsedSize -= size;
 		}
 
-		public string[] List()
+		public void Clear()
 		{
-			return Directory.GetFiles (Root);
+			foreach (string path in List()) {
+				Delete (path);
+			}
+			Used = 0;
 		}
 	}
 }

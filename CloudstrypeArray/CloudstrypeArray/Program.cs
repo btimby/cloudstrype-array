@@ -22,10 +22,10 @@ namespace CloudstrypeArray
 		protected Client _client;
 		protected Storage _store;
 
-		public Server(string url, string guid, string path, long size)
+		public Server(string url, Guid name, string path, long size)
 		{
-			_client = new Client (url, Guid.Parse(guid));
-			_store = new Storage (path, size);
+			_client = new Client (url, name);
+			_store = new Storage (path, size, name);
 			_thread = new Thread (Run);
 		}
 
@@ -71,7 +71,7 @@ namespace CloudstrypeArray
 							byte[] data = new byte[16];
 							byte[] size = BitConverter.GetBytes (_store.Size);
 							Array.Copy(size, 0, data, 0, size.Length);
-							byte[] used = BitConverter.GetBytes (_store.UsedSize);
+							byte[] used = BitConverter.GetBytes (_store.Used);
 							Array.Copy(used, 0, data, 8, used.Length);
 							cmd.Data = data;
 							break;
@@ -219,7 +219,7 @@ namespace CloudstrypeArray
 
 			path = path.Replace ("$HOME", Util.GetHomeDirectory ());
 
-			Server s = new Server (server, name, path, size);
+			Server s = new Server (server, Guid.Parse(name), path, size);
 			s.Start ();
 			// Console.ReadLine() won't work without console. Console breaks
 			// debugger.

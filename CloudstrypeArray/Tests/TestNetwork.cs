@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using NUnit.Framework;
+using CloudstrypeArray.Lib;
 using CloudstrypeArray.Lib.Network;
 
 namespace Tests
@@ -78,7 +79,8 @@ namespace Tests
 			cmd.Data = new byte[] { 65, 65, 65, 65 };
 			Client.Send(cmd);
 
-			byte[] name = Client.ID.ToByteArray ();
+			byte[] name = Client.Name.ToByteArray ();
+			Util.FixGuid(ref name);
 			for (int i = 0; i < name.Length; i++)
 			{
 				Assert.AreEqual (name [i], Server.Name [i]);

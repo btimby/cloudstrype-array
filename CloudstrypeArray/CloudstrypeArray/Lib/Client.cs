@@ -121,16 +121,16 @@ namespace CloudstrypeArray.Lib.Network
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(Client));
 
 		// Implements a network client.
-		public Guid ID;
+		public Guid Name;
 
 		protected Socket _socket;
 		protected Stream _stream;
 		protected Uri Url;
 
-		public Client(string url, Guid id)
+		public Client(string url, Guid name)
 		{
 			Url = new Uri (url);
-			ID = id;
+			Name = name;
 		}
 
 		public void Connect()
@@ -150,8 +150,8 @@ namespace CloudstrypeArray.Lib.Network
 			{
 				_stream = new NetworkStream (_socket);
 			}
-			Logger.DebugFormat ("Connected, sending name {0}", ID);
-			byte[] name = ID.ToByteArray();
+			Logger.DebugFormat ("Connected, sending name {0}", Name);
+			byte[] name = Name.ToByteArray();
 			Util.FixGuid (ref name);
 			_stream.Write(name, 0, name.Length);
 		}
@@ -183,10 +183,15 @@ namespace CloudstrypeArray.Lib.Network
 			Command cmd = Command.ParseHeader (data);
 			if (cmd.Length > 0) {
 				data = new byte[cmd.Length];
-				_stream.Read (data, 0, data.Length);
+				Logger.DebugFormat ("Reading {0} bytes of payload", cmd.Length);
+				int bytesRead = 0;
+				while (bytesRead < data.Length) {
+					bytesRead += _stream.Read (data, bytesRead, data.Length - bytesRead);
+					Logger.DebugFormat ("Received {0} bytes", bytesRead);
+				}
 
 				// Find the length of the ID string.
-				int nullPos = Array.IndexOf<byte> (data, 0, 0);
+				int nullPos = Array.IndexOf<byte> (data, 0, cmd.IDLength);
 				nullPos = nullPos > -1 ? nullPos : cmd.IDLength;
 				nullPos = Math.Min (nullPos, cmd.IDLength);
 				cmd.ID = Encoding.ASCII.GetString (data, 0, nullPos );
@@ -195,10 +200,9 @@ namespace CloudstrypeArray.Lib.Network
 				cmd.Data = new byte[cmd.DataLength];
 				Array.Copy (data, cmd.IDLength, cmd.Data, 0, cmd.DataLength);
 			}
-			Logger.DebugFormat ("Received {0} bytes", cmd.Length + 10);
 			Logger.DebugFormat (
 				"Recv({0}): {1}({2}), {3}, id {4} bytes, payload {5} bytes",
-				ID, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
+				Name, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
 				cmd.IDLength, cmd.DataLength);
 			return cmd;
 		}
@@ -209,9 +213,9 @@ namespace CloudstrypeArray.Lib.Network
 			Logger.DebugFormat ("Sending {0} bytes", data.Length);
 			Logger.DebugFormat (
 				"Send({0}): {1}({2}), {3}, id {4} bytes, payload {5} bytes",
-				ID, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
+				Name, cmd.Type.ToString(), cmd.ID, cmd.Status.ToString(),
 				cmd.IDLength, cmd.DataLength);
-			_stream.Write(data, 0, data.Length);
+			_stream.Write (data, 0, data.Length);
 		}
 	}
 }
